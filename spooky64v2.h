@@ -32,11 +32,14 @@ extern "C" {
 #pragma GCC visibility push(hidden)
 #endif
 
+uint64_t spooky64v2veryshort(const void *data, size_t size, uint64_t seed);
 uint64_t spooky64v2short(const void *data, size_t size, uint64_t seed);
 uint64_t spooky64v2long(const void *data, size_t size, uint64_t seed);
 
 static inline uint64_t spooky64v2(const void *data, size_t size, uint64_t seed)
 {
+    if (size < 16)
+	return spooky64v2veryshort(data, size, seed);
     if (size < 192)
 	return spooky64v2short(data, size, seed);
     return spooky64v2long(data, size, seed);
