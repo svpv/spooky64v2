@@ -181,6 +181,15 @@ uint64_t spooky64v2short(const void *data, size_t size, uint64_t seed)
     return a;
 }
 
+#ifndef SPOOKY64V2_NOASM
+#ifdef __x86_64__
+#define SPOOKY64V2_NOASM 0
+#else
+#define SPOOKY64V2_NOASM 1
+#endif
+#endif
+
+#if SPOOKY64V2_NOASM
 uint64_t spooky64v2long(const void *data, size_t size, uint64_t seed)
 {
     uint64_t s0, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11;
@@ -269,3 +278,4 @@ uint64_t spooky64v2long(const void *data, size_t size, uint64_t seed)
     LongEndMix();
     return s0;
 }
+#endif
