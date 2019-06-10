@@ -225,17 +225,30 @@ uint64_t spooky64v2long(const void *data, size_t size, uint64_t seed)
 	data = (const char *) data + 96;
     } while (data <= last96);
 
-    unsigned char tail[2*96];
-    memcpy(tail, last96, 96);
-    memset(tail + 96, 0, 96);
+    const void *last48 = (const char *) last96 + 48;
+    unsigned char tail[2*48];
+    memcpy(tail, last48, 48);
+    memset(tail + 48, 0, 48);
 
-    size_t off = (const char *) data - (const char *) last96;
-    tail[off+95] = 96 - off;
-    data = tail + off;
+    if (data < last48) {
+	s0 += Load(0); s1 += Load(1); s2 += Load(2);
+	s3 += Load(3); s4 += Load(4); s5 += Load(5);
 
-    s0 += Load(0); s1 += Load(1); s2 += Load(2); s3 += Load(3);
-    s4 += Load(4); s5 += Load(5); s6 += Load(6); s7 += Load(7);
-    s8 += Load(8); s9 += Load(9); s10 += Load(10); s11 += Load(11);
+	size_t off = (const char *) data - (const char *) last96;
+	s11 += (uint64_t)(96 - off) << 56;
+	data = tail + off;
+
+	s6 += Load(0); s7 += Load(1); s8 += Load(2);
+	s9 += Load(3); s10 += Load(4); s11 += Load(5);
+    }
+    else {
+	size_t off = (const char *) data - (const char *) last48;
+	s11 += (uint64_t)(48 - off) << 56;
+	data = tail + off;
+
+	s0 += Load(0); s1 += Load(1); s2 += Load(2);
+	s3 += Load(3); s4 += Load(4); s5 += Load(5);
+    }
 
     LongEndMix();
     LongEndMix();
