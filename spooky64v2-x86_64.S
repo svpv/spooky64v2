@@ -49,8 +49,7 @@
 #define S9 %r11
 #define S10 %r12
 #define S11 %r13
-#define Tmp %r14
-#define Last96 %r15
+#define Last %r14
 
 #define FUNC(name)  \
 	.global    name; \
@@ -88,15 +87,51 @@
 #define Mix11b \
 	add  S0,S10
 
+#define EndMix(i1, i2, i11, k) \
+	add  S##i1,S##i11     ; \
+	xor  S##i11,S##i2     ; \
+	rol  $k,S##i1
+
+#define EndMix1  EndMix( 1,  2, 11, 44)
+#define EndMix2  EndMix( 2,  3,  0, 15)
+#define EndMix3  EndMix( 3,  4,  1, 34)
+#define EndMix4  EndMix( 4,  5,  2, 21)
+#define EndMix5  EndMix( 5,  6,  3, 38)
+#define EndMix6  EndMix( 6,  7,  4, 33)
+#define EndMix7  EndMix( 7,  8,  5, 10)
+#define EndMix8  EndMix( 8,  9,  6, 13)
+#define EndMix9  EndMix( 9, 10,  7, 38)
+#define EndMix10 EndMix(10, 11,  8, 53)
+#define EndMix11 EndMix(11,  0,  9, 42)
+#define EndMix0  EndMix( 0,  1, 10, 54)
+
+#define EndMixA \
+	EndMix1; EndMix2; EndMix3; EndMix4; \
+	EndMix5; EndMix6; EndMix7; EndMix8; \
+	EndMix9; EndMix10; EndMix11; EndMix0
+
+#define EndMix10b \
+	add  S10,S8; \
+	xor  S8,S11
+#define EndMix11b \
+	add  S11,S9; \
+	xor  S9,S0
+#define EndMix0b \
+	rol  $54,S0
+
+#define EndMixB \
+	EndMix1; EndMix2; EndMix3; EndMix4; \
+	EndMix5; EndMix6; EndMix7; EndMix8; \
+	EndMix9; EndMix10b; EndMix11b; EndMix0b
+
 FUNC(spooky64v2long)
 	push %rbx
 	push %rbp
 	push %r12
 	push %r13
 	push %r14
-	push %r15
 
-	lea  -96(Data,Size,1),Last96
+	lea  -96(Data,Size,1),Last
 
 	mov  S1,S0
 	movabs $0xdeadbeefdeadbeef,S2
@@ -127,10 +162,77 @@ FUNC(spooky64v2long)
 	add  10*8(Data),S10;   Mix10
 	add  11*8(Data),S11;   Mix11a
 	add  $96,Data;         Mix11b
-	cmp  Last96,Data
+	cmp  Last,Data
 	jbe  1b
 
-	pop  %r15
+	movups 64(Last),%xmm0
+	movups 80(Last),%xmm1
+	pxor %xmm2,%xmm2
+	movaps %xmm0,-64(%rsp)
+	movaps %xmm1,-48(%rsp)
+	add  $64,Last // Last32
+	movaps %xmm2,-32(%rsp)
+	movaps %xmm2,-16(%rsp)
+
+	cmp  Last,Data
+	jae  2f
+
+	add  0*8(Data),S0
+	add  1*8(Data),S1
+	sub  $32,Last // Last64
+	add  2*8(Data),S2
+	add  3*8(Data),S3
+	cmp  Last,Data
+	jae  3f
+
+	add  4*8(Data),S4
+	add  5*8(Data),S5
+	sub  $32,Last // Last96
+	add  6*8(Data),S6
+	add  7*8(Data),S7
+
+	sub  Last,Data // Data = off
+	mov  $96,Last // Last = left
+	sub  Data,Last
+	add  %rsp,Data
+	shl  $56,Last
+	add  Last,S11
+
+	add  -8*8(Data),S8
+	add  -7*8(Data),S9
+	add  -6*8(Data),S10
+	add  -5*8(Data),S11
+	jmp  4f
+
+2:	sub  Last,Data
+	mov  $32,Last
+	sub  Data,Last
+	add  %rsp,Data
+	shl  $56,Last
+	add  Last,S11
+
+	add  -8*8(Data),S0
+	add  -7*8(Data),S1
+	add  -6*8(Data),S2
+	add  -5*8(Data),S3
+	jmp  4f
+
+3:	sub  Last,Data
+	mov  $64,Last
+	sub  Data,Last
+	add  %rsp,Data
+	shl  $56,Last
+	add  Last,S11
+
+	add  -8*8(Data),S4
+	add  -7*8(Data),S5
+	add  -6*8(Data),S6
+	add  -5*8(Data),S7
+
+4:	EndMixA
+	EndMixA
+	EndMixB
+
 	pop  %r14
 	pop  %r13
 	pop  %r12
