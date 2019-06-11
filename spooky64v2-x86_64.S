@@ -124,12 +124,48 @@
 	EndMix5; EndMix6; EndMix7; EndMix8; \
 	EndMix9; EndMix10b; EndMix11b; EndMix0b
 
-FUNC(spooky64v2long)
-	push %rbx
-	push %rbp
-	push %r12
-	push %r13
+// We need to push the callee-saved registers and provide a 64-byte buffer,
+// aligned to 16 bytes (for movaps).  With System V ABI, we just push the
+// registers and use the red zone.  With MS x64 ABI, there is already a 32-byte
+// "shadow space", but there is no red zone, so %rsp has to be moved anyway.
+#if defined(_WIN32) || defined(__CYGWIN__)
+#define SetupStack \
+	mov  %rbx,8(%rsp)   ; \
+	mov  %rbp,16(%rsp)  ; \
+	mov  %rsi,24(%rsp)  ; \
+	mov  %rdi,32(%rsp)  ; \
+	sub  $88,%rsp       ; \
+	mov  %r12,64(%rsp)  ; \
+	mov  %r13,72(%rsp)  ; \
+	mov  %r14,80(%rsp)
+#define CleanupStack \
+	mov  64(%rsp),%r12  ; \
+	mov  72(%rsp),%r13  ; \
+	mov  80(%rsp),%r14  ; \
+	add  $88,%rsp       ; \
+	mov  8(%rsp),%rbx   ; \
+	mov  16(%rsp),%rbp  ; \
+	mov  24(%rsp),%rsi  ; \
+	mov  32(%rsp),%rdi
+#define Tail 0
+#else
+#define SetupStack \
+	push %rbx  ; \
+	push %rbp  ; \
+	push %r12  ; \
+	push %r13  ; \
 	push %r14
+#define CleanupStack \
+	pop  %r14  ; \
+	pop  %r13  ; \
+	pop  %r12  ; \
+	pop  %rbp  ; \
+	pop  %rbx
+#define Tail -64
+#endif
+
+FUNC(spooky64v2long)
+	SetupStack
 
 	lea  -96(Data,Size,1),Last
 
@@ -168,11 +204,11 @@ FUNC(spooky64v2long)
 	movups 64(Last),%xmm0
 	movups 80(Last),%xmm1
 	pxor %xmm2,%xmm2
-	movaps %xmm0,-64(%rsp)
-	movaps %xmm1,-48(%rsp)
+	movaps %xmm0,Tail+0(%rsp)
+	movaps %xmm1,Tail+16(%rsp)
 	add  $64,Last // Last32
-	movaps %xmm2,-32(%rsp)
-	movaps %xmm2,-16(%rsp)
+	movaps %xmm2,Tail+32(%rsp)
+	movaps %xmm2,Tail+48(%rsp)
 
 	cmp  Last,Data
 	jae  2f
@@ -198,10 +234,10 @@ FUNC(spooky64v2long)
 	shl  $56,Last
 	add  Last,S11
 
-	add  -8*8(Data),S8
-	add  -7*8(Data),S9
-	add  -6*8(Data),S10
-	add  -5*8(Data),S11
+	add  Tail+0(Data),S8
+	add  Tail+8(Data),S9
+	add  Tail+16(Data),S10
+	add  Tail+24(Data),S11
 	jmp  4f
 
 2:	sub  Last,Data
@@ -211,10 +247,10 @@ FUNC(spooky64v2long)
 	shl  $56,Last
 	add  Last,S11
 
-	add  -8*8(Data),S0
-	add  -7*8(Data),S1
-	add  -6*8(Data),S2
-	add  -5*8(Data),S3
+	add  Tail+0(Data),S0
+	add  Tail+8(Data),S1
+	add  Tail+16(Data),S2
+	add  Tail+24(Data),S3
 	jmp  4f
 
 3:	sub  Last,Data
@@ -224,19 +260,15 @@ FUNC(spooky64v2long)
 	shl  $56,Last
 	add  Last,S11
 
-	add  -8*8(Data),S4
-	add  -7*8(Data),S5
-	add  -6*8(Data),S6
-	add  -5*8(Data),S7
+	add  Tail+0(Data),S4
+	add  Tail+8(Data),S5
+	add  Tail+16(Data),S6
+	add  Tail+24(Data),S7
 
 4:	EndMixA
 	EndMixA
 	EndMixB
 
-	pop  %r14
-	pop  %r13
-	pop  %r12
-	pop  %rbp
-	pop  %rbx
+	CleanupStack
 	ret
 ENDF(spooky64v2long)
