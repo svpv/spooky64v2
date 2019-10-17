@@ -60,7 +60,7 @@ static inline uint64_t rotl64(uint64_t x, int k)
     return x << k | x >> (64 - k);
 }
 
-uint64_t spooky64v2veryshort(const void *data, size_t size, uint64_t seed)
+uint64_t spooky64v2tiny(const void *data, size_t size, uint64_t seed)
 {
     uint64_t a, b, c, d;
     a = b = seed;
