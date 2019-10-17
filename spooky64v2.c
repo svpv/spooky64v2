@@ -24,6 +24,9 @@ static inline uint64_t fetch64le(const void *p)
 {
     uint64_t x;
     memcpy(&x, p, 8);
+#if defined(__GNUC__) && __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+    x = __builtin_bswap64(x);
+#endif
     return x;
 }
 
@@ -31,6 +34,9 @@ static inline uint32_t fetch32le(const void *p)
 {
     uint32_t x;
     memcpy(&x, p, 4);
+#if defined(__GNUC__) && __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+    x = __builtin_bswap32(x);
+#endif
     return x;
 }
 
@@ -38,6 +44,9 @@ static inline uint16_t fetch16le(const void *p)
 {
     uint16_t x;
     memcpy(&x, p, 2);
+#if defined(__GNUC__) && __BYTE_ORDER__ != __ORDER_LITTLE_ENDIAN__
+    x = __builtin_bswap16(x);
+#endif
     return x;
 }
 
